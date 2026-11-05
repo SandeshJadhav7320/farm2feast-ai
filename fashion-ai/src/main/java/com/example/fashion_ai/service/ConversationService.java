@@ -20,6 +20,8 @@ import com.example.fashion_ai.client.CartApiClient;
 import com.example.fashion_ai.client.OrderApiClient;
 import com.example.fashion_ai.tool.OrderTools;
 import com.example.fashion_ai.tool.CartTools;
+import com.example.fashion_ai.service.CheckoutService;
+import com.example.fashion_ai.tool.CheckoutTools;
 
 
 @Service
@@ -90,6 +92,20 @@ public class ConversationService {
 
                             return conversationRepository.save(newConversation);
                         });
+
+                        // Handle explicit checkout confirmation before calling the AI model.
+                        String normalizedMessage = message.trim()
+                                .replaceAll("[.!]+$", "")
+                                .trim();
+
+                        if (normalizedMessage.equalsIgnoreCase("CONFIRM ORDER")) {
+
+                        return checkoutService.confirmCheckout(
+                                customerId,
+                                conversation.getConversationId(),
+                                jwtToken
+                        );
+                        }
 
         // STEP 1: Extract search requirements
         ProductSearchCriteria criteria =
@@ -262,6 +278,24 @@ public class ConversationService {
                 - Never reveal another customer's cart.
                 - Never bypass the store backend.
                 - Only report actual cart information returned by the store API.
+
+                CHECKOUT RULES:
+
+                1. When a customer wants to checkout or place an ordercollect the delivery name, phone number, full address,and payment method.
+                2. Accepted payment methods are COD and ONLINE.
+                3. Do not invent customer delivery details.
+                4. When all required details are available, callprepareCheckout
+                5. The prepareCheckout tool reads the actual cart andcreates a pending checkout.
+                6. Show the returned checkout summary to the customer.
+                7. Ask the customer to type exactly CONFIRM ORDERif they want to place the order.
+                8. Never say that an order has been placed duringcheckout preparation.
+                9. Never invent product IDs, quantities, prices,totals or order IDs.
+                10. Never claim that an order was created beforethe backend returns a successful response.
+                11. Do not claim that ONLINE payment is completed.An online order may have PENDING_PAYMENT status.
+                12. Never ask the customer for a customer ID.
+                13. Never expose another customer's checkout information.
+                14. Never call prepareCheckout for an empty cart.
+                15. Do not claim that a payment was received unlessthe actual payment system confirms it.
                                 """.formatted(productContext);
 
                 return chatClient.prompt()
@@ -270,7 +304,13 @@ public class ConversationService {
                         .tools(
                                 new ProductTools(productApiClient, jwtToken),
                                 new OrderTools(orderApiClient, jwtToken),
-                                new CartTools(cartApiClient,productApiClient, jwtToken)
+                                new CartTools(cartApiClient, productApiClient, jwtToken),
+                                new CheckoutTools(
+                                        checkoutService,
+                                        customerId,
+                                        conversation.getConversationId(),
+                                        jwtToken
+                                )
                         )
                         .advisors(advisor -> advisor.param(
                                 ChatMemory.CONVERSATION_ID,
@@ -279,4 +319,6 @@ public class ConversationService {
                         .call()
                         .content();
     }
+
+    
 }
