@@ -1,34 +1,35 @@
 package com.example.fashion_ai.tool;
 
 import com.example.fashion_ai.client.CartApiClient;
+import com.example.fashion_ai.client.ProductApiClient;
 import com.example.fashion_ai.dto.CartItemResponseDto;
 import com.example.fashion_ai.dto.ProductPageResponse;
 import com.example.fashion_ai.dto.StoreProduct;
+import com.example.fashion_ai.service.ProductCollector;
 
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.web.client.RestClientResponseException;
 
-import com.example.fashion_ai.client.ProductApiClient;
-
 import java.util.List;
-
-
 
 public class CartTools {
 
     private final CartApiClient cartApiClient;
     private final ProductApiClient productApiClient;
     private final String jwtToken;
+    private final ProductCollector productCollector;
 
     public CartTools(
             CartApiClient cartApiClient,
             ProductApiClient productApiClient,
-            String jwtToken
+            String jwtToken,
+            ProductCollector productCollector
     ) {
         this.cartApiClient = cartApiClient;
         this.productApiClient = productApiClient;
         this.jwtToken = jwtToken;
+        this.productCollector = productCollector;
     }
 
     @Tool(description = """
@@ -53,6 +54,8 @@ public class CartTools {
             result.append("Your shopping cart:\n\n");
 
             for (CartItemResponseDto item : cartItems) {
+
+                productCollector.add(item);
 
                 result.append("Product: ")
                         .append(item.productName()).append("\n");
@@ -138,7 +141,6 @@ public class CartTools {
 
             List<StoreProduct> products = page.getContent();
 
-            // First, look for an exact product-name match.
             List<StoreProduct> exactMatches = products.stream()
                     .filter(product ->
                             product.getName() != null
@@ -150,7 +152,6 @@ public class CartTools {
                 return addMatchedProduct(exactMatches.get(0), quantity);
             }
 
-            // If there is no exact match, do not guess between products.
             if (exactMatches.size() > 1 || products.size() > 1
                     || page.isHasNext()) {
 
@@ -213,6 +214,8 @@ public class CartTools {
                     product.getId(),
                     quantity
             );
+
+            productCollector.add(product);
 
             return response
                     + "\nProduct: " + product.getName()
@@ -279,7 +282,6 @@ public class CartTools {
             return "An unexpected error occurred while updating the cart.";
         }
     }
-
 
     @Tool(description = """
             Remove a product from the authenticated customer's

@@ -2,6 +2,7 @@ package com.example.fashion_ai.tool;
 
 import com.example.fashion_ai.client.ProductApiClient;
 import com.example.fashion_ai.dto.StoreProduct;
+import com.example.fashion_ai.service.ProductCollector;
 
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -11,13 +12,16 @@ public class ProductTools {
 
     private final ProductApiClient productApiClient;
     private final String jwtToken;
+    private final ProductCollector productCollector;
 
     public ProductTools(
             ProductApiClient productApiClient,
-            String jwtToken) {
-
+            String jwtToken,
+            ProductCollector productCollector
+    ) {
         this.productApiClient = productApiClient;
         this.jwtToken = jwtToken;
+        this.productCollector = productCollector;
     }
 
     @Tool(description = """
@@ -42,6 +46,8 @@ public class ProductTools {
                 return "Product not found.";
             }
 
+            productCollector.add(product);
+
             if (product.getQuantity() == null
                     || product.getQuantity() <= 0) {
 
@@ -63,10 +69,6 @@ public class ProductTools {
 
             System.err.println(
                     "Store API error: " + exception.getStatusCode()
-            );
-
-            System.err.println(
-                    "Store API response: " + exception.getResponseBodyAsString()
             );
 
             if (exception.getStatusCode().value() == 404) {
@@ -110,13 +112,15 @@ public class ProductTools {
                 return "Product not found.";
             }
 
+            productCollector.add(product);
+
             return """
                     Product Name: %s
                     Product ID: %d
                     Description: %s
                     Price: ₹%s
                     Category: %s
-                    Available Quantity: %d
+                    Available Quantity: %s
                     """.formatted(
                     product.getName(),
                     product.getId(),

@@ -1,8 +1,10 @@
+
 package com.example.fashion_ai.tool;
 
 import com.example.fashion_ai.client.OrderApiClient;
 import com.example.fashion_ai.dto.OrderItemResponseDto;
 import com.example.fashion_ai.dto.OrderResponseDto;
+import com.example.fashion_ai.service.ProductCollector;
 
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -15,13 +17,16 @@ public class OrderTools {
 
     private final OrderApiClient orderApiClient;
     private final String jwtToken;
+    private final ProductCollector productCollector;
 
     public OrderTools(
             OrderApiClient orderApiClient,
-            String jwtToken
+            String jwtToken,
+            ProductCollector productCollector
     ) {
         this.orderApiClient = orderApiClient;
         this.jwtToken = jwtToken;
+        this.productCollector = productCollector;
     }
 
     @Tool(description = """
@@ -43,6 +48,8 @@ public class OrderTools {
             StringBuilder result = new StringBuilder();
 
             for (OrderResponseDto order : orders) {
+
+                collectOrderProducts(order);
 
                 result.append(formatOrder(order));
                 result.append("\n--------------------\n");
@@ -90,6 +97,8 @@ public class OrderTools {
                 return "Order not found.";
             }
 
+            collectOrderProducts(order);
+
             return formatOrder(order);
 
         } catch (HttpClientErrorException.NotFound e) {
@@ -116,6 +125,17 @@ public class OrderTools {
 
             e.printStackTrace();
             return "An unexpected error occurred while retrieving this order.";
+        }
+    }
+
+    private void collectOrderProducts(OrderResponseDto order) {
+
+        if (order == null || order.items() == null) {
+            return;
+        }
+
+        for (OrderItemResponseDto item : order.items()) {
+            productCollector.add(item);
         }
     }
 

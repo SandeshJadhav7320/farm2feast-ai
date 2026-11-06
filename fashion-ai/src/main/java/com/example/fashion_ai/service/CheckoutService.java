@@ -1,3 +1,4 @@
+
 package com.example.fashion_ai.service;
 
 import java.time.LocalDateTime;
@@ -56,6 +57,7 @@ public class CheckoutService {
                 .isPresent();
     }
 
+    // Backward-compatible method.
     public String prepareCheckout(
             Long customerId,
             String conversationId,
@@ -64,6 +66,29 @@ public class CheckoutService {
             String phoneNumber,
             String deliveryAddress,
             String paymentMethod
+    ) {
+        return prepareCheckout(
+                customerId,
+                conversationId,
+                jwtToken,
+                deliveryName,
+                phoneNumber,
+                deliveryAddress,
+                paymentMethod,
+                null
+        );
+    }
+
+    // New method that also collects cart products.
+    public String prepareCheckout(
+            Long customerId,
+            String conversationId,
+            String jwtToken,
+            String deliveryName,
+            String phoneNumber,
+            String deliveryAddress,
+            String paymentMethod,
+            ProductCollector productCollector
     ) {
 
         if (deliveryName == null || deliveryName.isBlank()
@@ -95,6 +120,13 @@ public class CheckoutService {
 
             if (cart == null || cart.isEmpty()) {
                 return "Your cart is empty. Please add products before checkout.";
+            }
+
+            // Collect actual cart products for frontend product cards.
+            if (productCollector != null) {
+                for (CartItemResponseDto item : cart) {
+                    productCollector.add(item);
+                }
             }
 
             List<CheckoutItemDto> items = cart.stream()
@@ -176,10 +208,26 @@ public class CheckoutService {
         }
     }
 
+    // Backward-compatible method.
     public String confirmCheckout(
             Long customerId,
             String conversationId,
             String jwtToken
+    ) {
+        return confirmCheckout(
+                customerId,
+                conversationId,
+                jwtToken,
+                null
+        );
+    }
+
+    // New method that also collects successfully ordered products.
+    public String confirmCheckout(
+            Long customerId,
+            String conversationId,
+            String jwtToken,
+            ProductCollector productCollector
     ) {
 
         PendingCheckout checkout =
@@ -231,6 +279,13 @@ public class CheckoutService {
 
             if (response == null || response.id() == null) {
                 return "The store did not return a valid order confirmation. Please check your orders before trying again.";
+            }
+
+            // Collect products only after the store confirms order creation.
+            if (productCollector != null
+                    && response.items() != null) {
+
+                response.items().forEach(productCollector::add);
             }
 
             checkout.setStatus("COMPLETED");

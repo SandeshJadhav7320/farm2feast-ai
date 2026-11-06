@@ -9,6 +9,7 @@ public record OrderItemResponseDto(
         String productName,
         BigDecimal unitPrice,
         Integer quantity,
-        BigDecimal subtotal
+        BigDecimal subtotal,
+        String imageUrl
 ) {
 }

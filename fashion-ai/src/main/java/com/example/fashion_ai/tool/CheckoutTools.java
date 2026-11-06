@@ -1,9 +1,11 @@
+
 package com.example.fashion_ai.tool;
 
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
 import com.example.fashion_ai.service.CheckoutService;
+import com.example.fashion_ai.service.ProductCollector;
 
 public class CheckoutTools {
 
@@ -11,17 +13,20 @@ public class CheckoutTools {
     private final Long customerId;
     private final String conversationId;
     private final String jwtToken;
+    private final ProductCollector productCollector;
 
     public CheckoutTools(
             CheckoutService checkoutService,
             Long customerId,
             String conversationId,
-            String jwtToken
+            String jwtToken,
+            ProductCollector productCollector
     ) {
         this.checkoutService = checkoutService;
         this.customerId = customerId;
         this.conversationId = conversationId;
         this.jwtToken = jwtToken;
+        this.productCollector = productCollector;
     }
 
     @Tool(description = """
@@ -53,7 +58,8 @@ public class CheckoutTools {
                 deliveryName,
                 phoneNumber,
                 deliveryAddress,
-                paymentMethod
+                paymentMethod,
+                productCollector
         );
     }
 }

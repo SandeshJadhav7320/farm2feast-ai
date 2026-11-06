@@ -1,3 +1,4 @@
+
 package com.example.fashion_ai.controller;
 
 import com.example.fashion_ai.dto.ConversationRequest;
@@ -22,7 +23,7 @@ public class ConversationController {
         this.conversationService = conversationService;
     }
 
-   @PostMapping("/chat")
+    @PostMapping("/chat")
     public ChatResponse chat(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ConversationRequest request) {
@@ -32,13 +33,12 @@ public class ConversationController {
 
         String jwtToken = jwt.getTokenValue();
 
-        String aiResponse = conversationService.chat(
+        // Service now returns both AI text and product cards.
+        return conversationService.chat(
                 customerId,
                 request.getConversationId(),
                 request.getMessage(),
                 jwtToken
         );
-
-        return new ChatResponse(aiResponse);
     }
 }
