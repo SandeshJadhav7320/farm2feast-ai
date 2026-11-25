@@ -118,9 +118,17 @@ public class SecurityConfig {
 
             // Allow preflight requests
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                    .anyRequest().authenticated()
-            )
+
+                // Allow browser preflight requests
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Only admins can use Admin AI APIs
+                .requestMatchers("/api/admin-ai/**")
+                .hasRole("ADMIN")
+
+                // All other APIs require authentication
+                .anyRequest().authenticated()
+        )
 
             // Enable JWT authentication
             .oauth2ResourceServer(oauth2 ->
