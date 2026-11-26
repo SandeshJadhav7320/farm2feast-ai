@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.Set;
+import com.example.fashion_ai.admin.dto.AdminProductUpdateRequest;
 
 @Service
 public class AdminProductService {
@@ -79,4 +80,61 @@ public class AdminProductService {
             );
         }
     }
+
+
+public AdminProductResponse getProductById(
+        String jwtToken,
+        Long productId) {
+
+    return adminProductApiClient.getProductById(
+            jwtToken,
+            productId
+    );
+}
+
+
+public AdminProductResponse updateProduct(
+        String jwtToken,
+        Long productId,
+        com.example.fashion_ai.admin.dto.AdminProductUpdateRequest request) {
+
+    if (request.getImage() != null &&
+            !request.getImage().isEmpty()) {
+
+        String contentType = request.getImage().getContentType();
+
+        if (contentType == null ||
+                !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Only JPG, PNG and WEBP images are allowed."
+            );
+        }
+
+        if (request.getImage().getSize() > 5 * 1024 * 1024) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Image size must not exceed 5 MB."
+            );
+        }
+    }
+
+    try {
+        return adminProductApiClient.updateProduct(
+                jwtToken,
+                productId,
+                request
+        );
+
+    } catch (IOException exception) {
+
+        throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Unable to read the product image."
+        );
+    }
+}
+
 }

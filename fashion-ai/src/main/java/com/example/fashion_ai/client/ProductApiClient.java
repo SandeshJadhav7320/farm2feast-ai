@@ -78,4 +78,6 @@ public class ProductApiClient {
                 .retrieve()
                 .body(StoreProduct.class);
     }
+
+    
 }
