@@ -11,7 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.fashion_ai.client.ProductApiClient;
 import com.example.fashion_ai.client.CartApiClient;
-import com.example.fashion_ai.client.OrderApiClient;
+import com.example.fashion_ai.client.OrderProductApiClient;
 
 import com.example.fashion_ai.dto.ChatResponse;
 import com.example.fashion_ai.dto.ProductPageResponse;
@@ -34,7 +34,7 @@ public class ConversationService {
     private final ChatClient extractionChatClient;
     private final ChatConversationRepository conversationRepository;
     private final ProductApiClient productApiClient;
-    private final OrderApiClient orderApiClient;
+    private final OrderProductApiClient orderApiClient;
     private final CartApiClient cartApiClient;
     private final CheckoutService checkoutService;
 
@@ -43,7 +43,7 @@ public class ConversationService {
             ChatMemory chatMemory,
             ChatConversationRepository conversationRepository,
             ProductApiClient productApiClient,
-            OrderApiClient orderApiClient,
+            OrderProductApiClient orderApiClient,
             CartApiClient cartApiClient,
             CheckoutService checkoutService) {
 

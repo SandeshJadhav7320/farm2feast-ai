@@ -12,11 +12,11 @@ import org.springframework.web.client.RestClient;
 import java.util.List;
 
 @Component
-public class OrderApiClient {
+public class OrderProductApiClient {
 
     private final RestClient restClient;
 
-    public OrderApiClient() {
+    public OrderProductApiClient() {
         this.restClient = RestClient.builder()
                 .baseUrl("https://farm2feast.onrender.com")
                 .build();

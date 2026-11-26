@@ -12,7 +12,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.example.fashion_ai.client.CartApiClient;
-import com.example.fashion_ai.client.OrderApiClient;
+import com.example.fashion_ai.client.OrderProductApiClient;
 import com.example.fashion_ai.dto.CartItemResponseDto;
 import com.example.fashion_ai.dto.checkout.CheckoutItemDto;
 import com.example.fashion_ai.dto.checkout.CheckoutOrderRequestDto;
@@ -26,13 +26,13 @@ import com.example.fashion_ai.repository.PendingCheckoutRepository;
 public class CheckoutService {
 
     private final CartApiClient cartApiClient;
-    private final OrderApiClient orderApiClient;
+    private final OrderProductApiClient orderApiClient;
     private final PendingCheckoutRepository repository;
     private final ObjectMapper objectMapper;
 
     public CheckoutService(
             CartApiClient cartApiClient,
-            OrderApiClient orderApiClient,
+            OrderProductApiClient orderApiClient,
             PendingCheckoutRepository repository,
             ObjectMapper objectMapper
     ) {

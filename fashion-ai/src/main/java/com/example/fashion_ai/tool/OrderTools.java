@@ -1,7 +1,7 @@
 
 package com.example.fashion_ai.tool;
 
-import com.example.fashion_ai.client.OrderApiClient;
+import com.example.fashion_ai.client.OrderProductApiClient;
 import com.example.fashion_ai.dto.OrderItemResponseDto;
 import com.example.fashion_ai.dto.OrderResponseDto;
 import com.example.fashion_ai.service.ProductCollector;
@@ -15,12 +15,12 @@ import java.util.List;
 
 public class OrderTools {
 
-    private final OrderApiClient orderApiClient;
+    private final OrderProductApiClient orderApiClient;
     private final String jwtToken;
     private final ProductCollector productCollector;
 
     public OrderTools(
-            OrderApiClient orderApiClient,
+            OrderProductApiClient orderApiClient,
             String jwtToken,
             ProductCollector productCollector
     ) {
