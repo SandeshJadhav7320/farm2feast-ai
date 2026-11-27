@@ -159,4 +159,61 @@ public class AdminOrderTools {
     public String getLastResultType() {
         return lastResultType;
     }
+
+        @Tool(description = """
+                Change the status of an existing customer order.
+
+                Use this tool when the admin asks to update an order status.
+
+                Examples:
+                - Change order 105 to PROCESSING
+                - Mark order 105 as CONFIRMED
+                - Mark order 105 as DELIVERED
+
+                Allowed statuses must match the Store backend:
+                PLACED, PROCESSING, CONFIRMED, SHIPPED,
+                DELIVERED, CANCELLED.
+
+                Always use the order ID and status explicitly.
+                """)
+        public Map<String, Object> changeOrderStatus(
+                @ToolParam(description = "The order ID") Long orderId,
+
+                @ToolParam(description = "The new order status") String status
+        ) {
+        if (orderId == null || orderId <= 0) {
+                throw new IllegalArgumentException("Invalid order ID");
+        }
+
+        String normalizedStatus = status
+                .trim()
+                .toUpperCase();
+
+        List<String> allowedStatuses = List.of(
+                "PLACED",
+                "PROCESSING",
+                "CONFIRMED",
+                "SHIPPED",
+                "DELIVERED",
+                "CANCELLED"
+        );
+
+        if (!allowedStatuses.contains(normalizedStatus)) {
+                throw new IllegalArgumentException(
+                        "Invalid status: " + status
+                );
+        }
+
+        Map<String, Object> result =
+                orderApiClient.updateOrderStatus(
+                        jwtToken,
+                        orderId,
+                        normalizedStatus
+                );
+
+        lastResult = result;
+        lastResultType = "STATUS_UPDATED";
+
+        return result;
+        }
 }

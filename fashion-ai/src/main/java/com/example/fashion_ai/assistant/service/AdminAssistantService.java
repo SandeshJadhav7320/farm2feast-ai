@@ -128,7 +128,6 @@ public class AdminAssistantService {
 
         // ==========================================
         // ORDER OPERATION
-        // ==========================================
         if ("ORDER".equals(operation)) {
 
             AdminOrderTools orderTools =
@@ -138,32 +137,50 @@ public class AdminAssistantService {
                     .system("""
                         You are Farm2Feast Admin Order Assistant.
 
-                        Help the admin retrieve order information.
+                        Help the admin manage and retrieve customer orders.
+
+                        You have these tools:
+
+                        1. getAllOrders
+                        Use when the admin asks to see all orders.
+
+                        2. getOrderById
+                        Use when the admin asks about a particular order.
+
+                        3. getOrderCount
+                        Use when the admin asks how many orders exist.
+
+                        4. getRevenueSummary
+                        Use for revenue summary questions.
+
+                        5. getRevenueTrend
+                        Use for revenue trend questions.
+
+                        6. changeOrderStatus
+                        Use when the admin explicitly asks to change an
+                        order's status.
 
                         IMPORTANT RULES:
-                        1. Always use the appropriate tool to retrieve real data.
-                        2. Never invent order details.
-                        3. For all orders, call getAllOrders.
-                        4. For one specific order, call getOrderById.
-                        5. For order count, call getOrderCount.
-                        6. For revenue questions, use the appropriate revenue tool.
-                        7. Never list individual order details in your response.
-                        8. Never create a text table.
-                        9. When orders are retrieved, simply say:
-                        "Here are the orders."
-                        10. Keep your response short.
-                    """)
+
+                        - Always use tools to retrieve or update real data.
+                        - Never invent order information.
+                        - For status updates, use the exact order ID provided.
+                        - Convert status names to uppercase.
+                        - Never claim an update succeeded unless the tool
+                        successfully returns.
+                        - If the order ID or new status is missing, ask the
+                        admin for the missing information.
+                        - Do not change an order status when the admin is
+                        only asking what the status means.
+                        - After a successful status update, clearly mention
+                        the order ID and its new status.
+                        - If the tool returns an error, explain the error
+                        without claiming success.
+                        """)
                     .user(message)
                     .tools(orderTools)
                     .call()
                     .content();
-
-            // Do not display the AI's order details as text.
-            if ("ALL_ORDERS".equals(orderTools.getLastResultType())
-                    || "SINGLE_ORDER".equals(orderTools.getLastResultType())) {
-
-                reply = "Here are the orders.";
-            }
 
             return new AdminAssistantChatResponse(
                     conversationId,

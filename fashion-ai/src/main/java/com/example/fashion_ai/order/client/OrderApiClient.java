@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.MediaType;
 
 @Component
 public class OrderApiClient {
@@ -98,4 +99,22 @@ public class OrderApiClient {
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
     }
+
+        public Map<String, Object> updateOrderStatus(
+                String jwtToken,
+                Long orderId,
+                String status
+        ) {
+        return restClient.patch()
+                .uri("/api/admin/orders/{orderId}/status", orderId)
+                .header(
+                        HttpHeaders.AUTHORIZATION,
+                        "Bearer " + jwtToken
+                )
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("status", status))
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        }
+
 }
