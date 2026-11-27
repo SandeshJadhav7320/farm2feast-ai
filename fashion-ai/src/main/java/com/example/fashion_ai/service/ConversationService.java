@@ -121,15 +121,35 @@ public class ConversationService {
             );
         }
 
-                // STEP 1, 2, 3: Search products only when required.
+        // STEP 1, 2, 3: Search products only when required.
 
-                StringBuilder productContext = new StringBuilder();
+        StringBuilder productContext = new StringBuilder();
 
-                if (shouldSearchProducts(message)) {
+        if (shouldSearchProducts(message)) {
 
-                System.out.println("Product search required: " + message);
+        ProductPageResponse productPage = null;
 
-                // STEP 1: Extract product search requirements.
+        // CASE 1: Customer wants to see the complete product catalogue.
+        if (isGeneralProductBrowseRequest(message)) {
+
+                System.out.println("Loading all available products...");
+
+                productPage = productApiClient.searchProducts(
+                        jwtToken,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        15
+                );
+
+        } else {
+
+                // CASE 2: Customer wants to search for specific products.
+
+                System.out.println("Searching for specific products...");
+
                 ProductSearchCriteria criteria =
                         extractionChatClient.prompt()
                                 .system("""
@@ -151,9 +171,8 @@ public class ConversationService {
                                         4. Convert prices into numeric rupee values.
                                         5. Keep keywords short and specific.
                                         6. Remove generic words such as "show me"
-                                        and "products" from the keyword.
-                                        7. If the customer says "Sweet Makhana",
-                                        use keyword "Sweet".
+                                        and "products".
+                                        7. For "Sweet Makhana", use keyword "Sweet".
                                         8. Return structured data only.
                                         """)
                                 .user(message)
@@ -162,60 +181,61 @@ public class ConversationService {
 
                 if (criteria != null) {
 
-                        // STEP 2: Search the actual store API.
-                        ProductPageResponse productPage =
-                                productApiClient.searchProducts(
-                                        jwtToken,
-                                        criteria.getKeyword(),
-                                        criteria.getCategory(),
-                                        criteria.getMinPrice(),
-                                        criteria.getMaxPrice(),
-                                        null,
-                                        15
-                                );
-
-                        // STEP 3: Collect only the products returned by this search.
-                        if (productPage != null &&
-                                productPage.getContent() != null) {
-
-                        for (StoreProduct product : productPage.getContent()) {
-
-                                productCollector.add(product);
-
-                                productContext.append("""
-                                        Product ID: %s
-                                        Name: %s
-                                        Description: %s
-                                        Price: ₹%s
-                                        Available Quantity: %s
-                                        Category: %s
-
-                                        """.formatted(
-                                        product.getId(),
-                                        product.getName(),
-                                        product.getDescription(),
-                                        product.getPrice(),
-                                        product.getQuantity(),
-                                        product.getCategory()
-                                ));
-                        }
-                        }
-                }
-
-                if (productContext.isEmpty()) {
-                        productContext.append("No matching products were found.");
-                }
-
-                } else {
-
-                System.out.println("Product search skipped: " + message);
-
-                productContext.append(
-                        "Product search was not required for this customer message. " +
-                        "Do not recommend or invent products. " +
-                        "Use the available tools for the requested operation."
+                productPage = productApiClient.searchProducts(
+                        jwtToken,
+                        criteria.getKeyword(),
+                        criteria.getCategory(),
+                        criteria.getMinPrice(),
+                        criteria.getMaxPrice(),
+                        null,
+                        15
                 );
                 }
+        }
+
+        // CASE 3: Collect products returned by the store API.
+
+        if (productPage != null &&
+                productPage.getContent() != null) {
+
+                for (StoreProduct product : productPage.getContent()) {
+
+                productCollector.add(product);
+
+                productContext.append("""
+                        Product ID: %s
+                        Name: %s
+                        Description: %s
+                        Price: ₹%s
+                        Available Quantity: %s
+                        Category: %s
+
+                        """.formatted(
+                        product.getId(),
+                        product.getName(),
+                        product.getDescription(),
+                        product.getPrice(),
+                        product.getQuantity(),
+                        product.getCategory()
+                ));
+                }
+        }
+
+        if (productContext.isEmpty()) {
+                productContext.append(
+                        "No matching products were found in the store."
+                );
+        }
+
+        } else {
+
+        System.out.println("Product search skipped: " + message);
+
+        productContext.append(
+                "Product search was not required for this message. " +
+                "Do not invent or recommend products."
+        );
+        }
 
         // STEP 4: Generate the final AI response.
         String systemPrompt = """
@@ -230,12 +250,20 @@ public class ConversationService {
 
 
                 PRODUCT SEARCH RULES:
-                1. Product information is provided only when a product search was performed.
-                2. If product search was not performed, do not recommend products.
-                3. Do not display or invent product cards for normal conversations,
-                order operations, cart operations, or checkout confirmation.
-                4. For product-related requests, use only the actual product information
-                supplied in the current request. 
+
+                1. When the customer asks to see all available products,
+                show the products provided in the current product information.
+
+                2. When the customer asks for specific products,
+                recommend only matching products from the provided information.
+
+                3. If no product information is provided, do not invent products.
+
+                4. Never claim that products are available unless they are
+                present in the actual store API response.
+
+                5. If the store returns no products, politely tell the customer
+                that no matching products were found.
                 
                 Important rules:
                 1. Recommend only products in the provided information.
@@ -490,6 +518,40 @@ public class ConversationService {
     };
 
     for (String phrase : productSearchPhrases) {
+        if (text.contains(phrase)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+private boolean isGeneralProductBrowseRequest(String message) {
+
+    if (message == null || message.isBlank()) {
+        return false;
+    }
+
+    String text = message.toLowerCase().trim();
+
+    String[] phrases = {
+            "show all products",
+            "show available products",
+            "show me all products",
+            "show me available products",
+            "available products",
+            "all products",
+            "list products",
+            "list all products",
+            "what products do you have",
+            "what products are available",
+            "which products are available",
+            "display all products",
+            "browse products",
+            "show me products"
+    };
+
+    for (String phrase : phrases) {
         if (text.contains(phrase)) {
             return true;
         }
