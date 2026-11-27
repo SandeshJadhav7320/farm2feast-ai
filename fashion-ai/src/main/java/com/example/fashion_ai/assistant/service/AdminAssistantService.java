@@ -129,41 +129,41 @@ public class AdminAssistantService {
         // ==========================================
         // ORDER OPERATION
         // ==========================================
-
         if ("ORDER".equals(operation)) {
 
             AdminOrderTools orderTools =
-                    new AdminOrderTools(
-                            orderApiClient,
-                            jwtToken
-                    );
+                    new AdminOrderTools(orderApiClient, jwtToken);
 
             String reply = chatClient.prompt()
                     .system("""
-                            You are Farm2Feast Admin Order Assistant.
+                        You are Farm2Feast Admin Order Assistant.
 
-                            Help the admin retrieve order information.
+                        Help the admin retrieve order information.
 
-                            Available tools:
-                            - getAllOrders
-                            - getOrderById
-                            - getOrderCount
-                            - getRevenueSummary
-                            - getRevenueTrend
-
-                            IMPORTANT:
-                            1. Always use the appropriate tool to retrieve real data.
-                            2. Never invent order details.
-                            3. For all orders, call getAllOrders.
-                            4. For one specific order, call getOrderById.
-                            5. For order count, call getOrderCount.
-                            6. For revenue questions, use the appropriate revenue tool.
-                            7. Give the admin a short, helpful explanation of the result.
-                            """)
+                        IMPORTANT RULES:
+                        1. Always use the appropriate tool to retrieve real data.
+                        2. Never invent order details.
+                        3. For all orders, call getAllOrders.
+                        4. For one specific order, call getOrderById.
+                        5. For order count, call getOrderCount.
+                        6. For revenue questions, use the appropriate revenue tool.
+                        7. Never list individual order details in your response.
+                        8. Never create a text table.
+                        9. When orders are retrieved, simply say:
+                        "Here are the orders."
+                        10. Keep your response short.
+                    """)
                     .user(message)
                     .tools(orderTools)
                     .call()
                     .content();
+
+            // Do not display the AI's order details as text.
+            if ("ALL_ORDERS".equals(orderTools.getLastResultType())
+                    || "SINGLE_ORDER".equals(orderTools.getLastResultType())) {
+
+                reply = "Here are the orders.";
+            }
 
             return new AdminAssistantChatResponse(
                     conversationId,
