@@ -125,7 +125,11 @@ public class AdminAssistantService {
             );
         }
 
-        // ORDER TOOLS
+
+        // ==========================================
+        // ORDER OPERATION
+        // ==========================================
+
         if ("ORDER".equals(operation)) {
 
             AdminOrderTools orderTools =
@@ -136,21 +140,25 @@ public class AdminAssistantService {
 
             String reply = chatClient.prompt()
                     .system("""
-                            You are the Farm2Feast admin order assistant.
+                            You are Farm2Feast Admin Order Assistant.
 
-                            Help administrators view customer orders,
-                            individual orders, order counts and revenue.
+                            Help the admin retrieve order information.
 
-                            Use the available tools whenever actual
-                            order information is requested.
+                            Available tools:
+                            - getAllOrders
+                            - getOrderById
+                            - getOrderCount
+                            - getRevenueSummary
+                            - getRevenueTrend
 
-                            Never invent order IDs, customer details,
-                            payment information, statuses or revenue.
-
-                            Only provide information returned by tools.
-
-                            If an order ID or other required information
-                            is missing, ask the admin to provide it.
+                            IMPORTANT:
+                            1. Always use the appropriate tool to retrieve real data.
+                            2. Never invent order details.
+                            3. For all orders, call getAllOrders.
+                            4. For one specific order, call getOrderById.
+                            5. For order count, call getOrderCount.
+                            6. For revenue questions, use the appropriate revenue tool.
+                            7. Give the admin a short, helpful explanation of the result.
                             """)
                     .user(message)
                     .tools(orderTools)
@@ -159,12 +167,15 @@ public class AdminAssistantService {
 
             return new AdminAssistantChatResponse(
                     conversationId,
-                    operation,
+                    "ORDER",
                     reply,
                     null,
-                    false
+                    false,
+                    orderTools.getLastResultType(),
+                    orderTools.getLastResult()
             );
         }
+
 
         throw new IllegalStateException(
                 "Unsupported assistant operation: " + operation

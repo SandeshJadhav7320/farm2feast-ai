@@ -9,7 +9,9 @@ public class AdminAssistantChatResponse {
     private Object draft;
     private boolean readyForConfirmation;
 
-    public AdminAssistantChatResponse() {}
+    // New fields for structured order information
+    private Object orderData;
+    private String orderDataType;
 
     public AdminAssistantChatResponse(
             String conversationId,
@@ -23,6 +25,24 @@ public class AdminAssistantChatResponse {
         this.reply = reply;
         this.draft = draft;
         this.readyForConfirmation = readyForConfirmation;
+    }
+
+    public AdminAssistantChatResponse(
+            String conversationId,
+            String operation,
+            String reply,
+            Object draft,
+            boolean readyForConfirmation,
+            String orderDataType,
+            Object orderData) {
+
+        this.conversationId = conversationId;
+        this.operation = operation;
+        this.reply = reply;
+        this.draft = draft;
+        this.readyForConfirmation = readyForConfirmation;
+        this.orderDataType = orderDataType;
+        this.orderData = orderData;
     }
 
     public String getConversationId() {
@@ -43,5 +63,13 @@ public class AdminAssistantChatResponse {
 
     public boolean isReadyForConfirmation() {
         return readyForConfirmation;
+    }
+
+    public Object getOrderData() {
+        return orderData;
+    }
+
+    public String getOrderDataType() {
+        return orderDataType;
     }
 }

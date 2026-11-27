@@ -12,8 +12,11 @@ import java.util.Map;
 public class AdminOrderTools {
 
     private final OrderApiClient orderApiClient;
-
     private final String jwtToken;
+
+    // Stores the structured result returned by the latest tool call.
+    private Object lastResult;
+    private String lastResultType;
 
     public AdminOrderTools(
             OrderApiClient orderApiClient,
@@ -23,7 +26,9 @@ public class AdminOrderTools {
         this.jwtToken = jwtToken;
     }
 
-    // TOOL 1: Get all orders
+    // ==========================================
+    // TOOL 1: GET ALL ORDERS
+    // ==========================================
 
     @Tool(description = """
             Get all customer orders.
@@ -32,10 +37,18 @@ public class AdminOrderTools {
             """)
     public List<Map<String, Object>> getAllOrders() {
 
-        return orderApiClient.getAllOrders(jwtToken);
+        List<Map<String, Object>> orders =
+                orderApiClient.getAllOrders(jwtToken);
+
+        this.lastResult = orders;
+        this.lastResultType = "ALL_ORDERS";
+
+        return orders;
     }
 
-    // TOOL 2: Get a specific order
+    // ==========================================
+    // TOOL 2: GET ONE ORDER
+    // ==========================================
 
     @Tool(description = """
             Get complete details of a specific order
@@ -46,13 +59,21 @@ public class AdminOrderTools {
             @ToolParam(description = "The order ID")
             Long orderId) {
 
-        return orderApiClient.getOrderById(
-                jwtToken,
-                orderId
-        );
+        Map<String, Object> order =
+                orderApiClient.getOrderById(
+                        jwtToken,
+                        orderId
+                );
+
+        this.lastResult = order;
+        this.lastResultType = "SINGLE_ORDER";
+
+        return order;
     }
 
-    // TOOL 3: Get total order count
+    // ==========================================
+    // TOOL 3: GET ORDER COUNT
+    // ==========================================
 
     @Tool(description = """
             Get the total number of orders.
@@ -61,10 +82,18 @@ public class AdminOrderTools {
             """)
     public Map<String, Object> getOrderCount() {
 
-        return orderApiClient.getOrderCount(jwtToken);
+        Map<String, Object> result =
+                orderApiClient.getOrderCount(jwtToken);
+
+        this.lastResult = result;
+        this.lastResultType = "ORDER_COUNT";
+
+        return result;
     }
 
-    // TOOL 4: Get revenue summary
+    // ==========================================
+    // TOOL 4: GET REVENUE SUMMARY
+    // ==========================================
 
     @Tool(description = """
             Get the overall revenue summary,
@@ -75,10 +104,18 @@ public class AdminOrderTools {
             """)
     public Map<String, Object> getRevenueSummary() {
 
-        return orderApiClient.getRevenueSummary(jwtToken);
+        Map<String, Object> result =
+                orderApiClient.getRevenueSummary(jwtToken);
+
+        this.lastResult = result;
+        this.lastResultType = "REVENUE_SUMMARY";
+
+        return result;
     }
 
-    // TOOL 5: Get revenue trend
+    // ==========================================
+    // TOOL 5: GET REVENUE TREND
+    // ==========================================
 
     @Tool(description = """
             Get daily revenue for a specified number
@@ -98,9 +135,28 @@ public class AdminOrderTools {
             );
         }
 
-        return orderApiClient.getRevenueTrend(
-                jwtToken,
-                days
-        );
+        List<Map<String, Object>> result =
+                orderApiClient.getRevenueTrend(
+                        jwtToken,
+                        days
+                );
+
+        this.lastResult = result;
+        this.lastResultType = "REVENUE_TREND";
+
+        return result;
+    }
+
+    // ==========================================
+    // GET STRUCTURED RESULT
+    // These are Java methods, NOT AI tools.
+    // ==========================================
+
+    public Object getLastResult() {
+        return lastResult;
+    }
+
+    public String getLastResultType() {
+        return lastResultType;
     }
 }
