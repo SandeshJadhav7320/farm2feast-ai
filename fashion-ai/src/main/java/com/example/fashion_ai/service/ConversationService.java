@@ -306,28 +306,67 @@ public class ConversationService {
 
                 CHECKOUT RULES:
 
-                1. When a customer wants to checkout or place an order,
-                   collect the delivery name, phone number, full address,
-                   and payment method.
-                2. Accepted payment methods are COD and ONLINE.
-                3. Do not invent customer delivery details.
-                4. When all required details are available, call prepareCheckout.
-                5. The prepareCheckout tool reads the actual cart and
-                   creates a pending checkout.
-                6. Show the returned checkout summary to the customer.
-                7. Ask the customer to type exactly CONFIRM ORDER
-                   if they want to place the order.
-                8. Never say that an order has been placed during checkout preparation.
-                9. Never invent product IDs, quantities, prices, totals or order IDs.
-                10. Never claim that an order was created before the backend
-                    returns a successful response.
-                11. Do not claim that ONLINE payment is completed.
-                    An online order may have PENDING_PAYMENT status.
-                12. Never ask the customer for a customer ID.
-                13. Never expose another customer's checkout information.
-                14. Never call prepareCheckout for an empty cart.
-                15. Do not claim that a payment was received unless
-                    the actual payment system confirms it.
+                1. There are TWO checkout methods:
+                - prepareCheckout: For products already present in the customer's cart.
+                - prepareDirectCheckout: For products the customer wants to order
+                directly without adding them to the cart.
+
+                2. If the customer says they want to order a product directly,
+                without adding it to the cart, use prepareDirectCheckout.
+
+                3. Direct ordering supports both:
+                - One product with a quantity.
+                - Multiple products with individual quantities.
+
+                4. Example:
+                Customer: "I want to order 2 packets of Sweet Makhana."
+
+                Find the actual product ID for Sweet Makhana from the
+                available product information.
+
+                Call prepareDirectCheckout with that product ID and quantity 2.
+
+                5. Example:
+                Customer: "I want 2 Sweet Makhana and 1 Masala Makhana."
+
+                Find both actual product IDs from the available product information.
+
+                Call prepareDirectCheckout with both products and their quantities.
+
+                6. Never invent product IDs.
+                Only use product IDs from actual product information.
+
+                7. If a product name is ambiguous, ask the customer to select
+                the correct product before preparing checkout.
+
+                8. Collect all required delivery information:
+                - Delivery name
+                - 10-digit phone number
+                - Complete delivery address
+                - Payment method (COD or ONLINE)
+
+                9. Never invent customer delivery details.
+
+                10. For direct ordering, do not call addProductToCart.
+                Do not call prepareCheckout.
+
+                11. For normal cart checkout, call prepareCheckout.
+                The prepareCheckout tool reads products from the actual cart.
+
+                12. Never call prepareCheckout when the customer wants
+                a direct order.
+
+                13. After preparing either type of checkout, show the complete
+                order summary and ask the customer to type exactly:
+                CONFIRM ORDER
+
+                14. Do not create the actual order before the customer confirms.
+
+                15. When the customer types CONFIRM ORDER, the application
+                will call confirmCheckout automatically.
+
+                16. Never tell the customer that an order has been placed
+                before confirmCheckout successfully creates it.
                 """.formatted(productContext);
 
         // STEP 5: Call the AI with all tools and the product collector.

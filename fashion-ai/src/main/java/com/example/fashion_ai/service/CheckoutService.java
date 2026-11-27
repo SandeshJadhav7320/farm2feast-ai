@@ -2,7 +2,10 @@
 package com.example.fashion_ai.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientResponseException;
@@ -13,12 +16,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.example.fashion_ai.client.CartApiClient;
 import com.example.fashion_ai.client.OrderProductApiClient;
+import com.example.fashion_ai.client.ProductApiClient;
 import com.example.fashion_ai.dto.CartItemResponseDto;
 import com.example.fashion_ai.dto.checkout.CheckoutItemDto;
 import com.example.fashion_ai.dto.checkout.CheckoutOrderRequestDto;
 import com.example.fashion_ai.dto.order.CreateOrderRequestDto;
 import com.example.fashion_ai.dto.order.OrderItemRequestDto;
 import com.example.fashion_ai.dto.OrderResponseDto;
+import com.example.fashion_ai.dto.StoreProduct;
 import com.example.fashion_ai.entity.PendingCheckout;
 import com.example.fashion_ai.repository.PendingCheckoutRepository;
 
@@ -29,17 +34,20 @@ public class CheckoutService {
     private final OrderProductApiClient orderApiClient;
     private final PendingCheckoutRepository repository;
     private final ObjectMapper objectMapper;
+    private final ProductApiClient productApiClient;
 
     public CheckoutService(
             CartApiClient cartApiClient,
             OrderProductApiClient orderApiClient,
             PendingCheckoutRepository repository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ProductApiClient productApiClient
     ) {
         this.cartApiClient = cartApiClient;
         this.orderApiClient = orderApiClient;
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.productApiClient = productApiClient;
     }
 
     public boolean hasPendingCheckout(
@@ -314,5 +322,234 @@ public class CheckoutService {
         } catch (Exception e) {
             return "Unable to complete your checkout right now. Please check your order history before trying again.";
         }
+
+        
     }
+
+    public String prepareDirectCheckout(
+        Long customerId,
+        String conversationId,
+        String jwtToken,
+        String deliveryName,
+        String phoneNumber,
+        String deliveryAddress,
+        String paymentMethod,
+        List<CheckoutItemDto> requestedItems,
+        ProductCollector productCollector
+) {
+
+    try {
+
+        // STEP 1: Validate delivery details
+
+        if (deliveryName == null || deliveryName.isBlank()) {
+            return "Please provide your delivery name.";
+        }
+
+        if (phoneNumber == null ||
+                !phoneNumber.matches("^[0-9]{10}$")) {
+
+            return "Please provide a valid 10-digit phone number.";
+        }
+
+        if (deliveryAddress == null || deliveryAddress.isBlank()) {
+            return "Please provide your complete delivery address.";
+        }
+
+        if (deliveryName.length() > 100 ||
+                deliveryAddress.length() > 500) {
+
+            return "Delivery name or address is too long.";
+        }
+
+        if (paymentMethod == null ||
+                !(paymentMethod.equalsIgnoreCase("COD")
+                        || paymentMethod.equalsIgnoreCase("ONLINE"))) {
+
+            return "Please select COD or ONLINE payment.";
+        }
+
+
+        // STEP 2: Validate requested products
+
+        if (requestedItems == null || requestedItems.isEmpty()) {
+            return "Please tell me which products you want to order.";
+        }
+
+        Set<Long> productIds = new HashSet<>();
+
+        List<CheckoutItemDto> validItems = new ArrayList<>();
+
+        StringBuilder orderSummary = new StringBuilder();
+
+
+        // STEP 3: Verify every product
+
+        for (CheckoutItemDto item : requestedItems) {
+
+            if (item == null ||
+                    item.productId() == null ||
+                    item.productId() <= 0 ||
+                    item.quantity() == null ||
+                    item.quantity() <= 0) {
+
+                return "Invalid product ID or quantity.";
+            }
+
+            if (!productIds.add(item.productId())) {
+
+                return "The same product was included more than once. Please provide each product only once.";
+            }
+
+
+            // Get actual product from store backend
+
+            StoreProduct product = productApiClient.getProductById(
+                    jwtToken,
+                    item.productId()
+            );
+
+            if (product == null) {
+
+                return "Product not found. Please select a valid product.";
+            }
+
+
+            // IMPORTANT:
+            // Your StoreProduct class has getQuantity(),
+            // NOT getAvailableQuantity().
+
+            Integer availableQuantity = product.getQuantity();
+
+            if (availableQuantity == null ||
+                    availableQuantity < item.quantity()) {
+
+                return "Sorry, "
+                        + product.getName()
+                        + " has only "
+                        + availableQuantity
+                        + " packets available.";
+            }
+
+
+            // Save the verified item
+
+            validItems.add(
+                    new CheckoutItemDto(
+                            item.productId(),
+                            item.quantity()
+                    )
+            );
+
+
+            // Prepare order summary
+
+            orderSummary
+                    .append("- ")
+                    .append(product.getName())
+                    .append(" | Quantity: ")
+                    .append(item.quantity())
+                    .append("\n");
+        }
+
+
+        // STEP 4: Convert products into JSON
+
+        String itemsJson = objectMapper.writeValueAsString(validItems);
+
+
+        // STEP 5: Find existing pending checkout
+
+        // IMPORTANT:
+        // Use the same repository finder method
+        // that your existing prepareCheckout() method uses.
+
+        PendingCheckout pendingCheckout =
+                repository
+                        .findFirstByCustomerIdAndConversationIdAndStatusOrderByCreatedAtDesc(
+                                customerId,
+                                conversationId,
+                                "PENDING"
+                        )
+                        .orElse(null);
+
+
+        // STEP 6: Create pending checkout if required
+
+        if (pendingCheckout == null) {
+
+            pendingCheckout = new PendingCheckout();
+        }
+
+
+        // STEP 7: Save checkout information
+
+        pendingCheckout.setCustomerId(customerId);
+
+        pendingCheckout.setConversationId(conversationId);
+
+        pendingCheckout.setDeliveryName(deliveryName);
+
+        pendingCheckout.setPhoneNumber(phoneNumber);
+
+        pendingCheckout.setDeliveryAddress(deliveryAddress);
+
+        pendingCheckout.setPaymentMethod(paymentMethod.toUpperCase());
+
+        pendingCheckout.setItemsJson(itemsJson);
+
+        pendingCheckout.setStatus("PENDING");
+
+        pendingCheckout.setCreatedOrderId(null);
+
+        pendingCheckout.setCreatedAt(
+                java.time.LocalDateTime.now()
+        );
+
+        pendingCheckout.setExpiresAt(
+                java.time.LocalDateTime.now().plusMinutes(10)
+        );
+
+
+        repository.save(pendingCheckout);
+
+
+        // STEP 8: Return checkout summary
+
+        return """
+                Your direct order is ready for confirmation!
+
+                Products:
+                %s
+
+                Delivery Name: %s
+                Phone Number: %s
+                Delivery Address: %s
+                Payment Method: %s
+
+                Your checkout will expire in 10 minutes.
+
+                Please review your order details.
+
+                Type CONFIRM ORDER to place your order.
+                """.formatted(
+                orderSummary,
+                deliveryName,
+                phoneNumber,
+                deliveryAddress,
+                paymentMethod.toUpperCase()
+        );
+
+
+    } catch (org.springframework.web.client.RestClientResponseException e) {
+
+        return "Unable to verify products with the store. Please try again.";
+
+    } catch (Exception e) {
+
+        e.printStackTrace();
+
+        return "Something went wrong while preparing your direct order.";
+    }
+}
 }
