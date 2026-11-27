@@ -121,97 +121,101 @@ public class ConversationService {
             );
         }
 
-        // STEP 1: Extract search requirements.
-        ProductSearchCriteria criteria =
-                extractionChatClient.prompt()
-                        .system("""
-                                You are a product search requirement extractor
-                                for a Makhana shopping store.
+                // STEP 1, 2, 3: Search products only when required.
 
-                                Extract search filters from the customer's message.
+                StringBuilder productContext = new StringBuilder();
 
-                                Available fields:
-                                - keyword: A short product name or description keyword.
-                                - category: The product category.
-                                - minPrice: Minimum price in rupees.
-                                - maxPrice: Maximum price in rupees.
+                if (shouldSearchProducts(message)) {
 
-                                Important extraction rules:
+                System.out.println("Product search required: " + message);
 
-                                1. Extract only requirements supported by the message.
-                                2. Use null for filters the customer did not specify.
-                                3. Never invent product names, categories or prices.
-                                4. Convert price amounts into numeric rupee values.
-                                5. Keep keyword short and specific.
-                                6. Do not combine the product name with its category.
-                                7. Remove generic words such as "product", "products",
-                                   "Makhana" and "show me" from keyword when they
-                                   do not help identify the product.
-                                8. If the customer says "sweet Makhana",
-                                   extract keyword as "sweet" and category as null.
-                                9. Only populate category when the customer clearly
-                                   specifies a product category.
-                                10. Return structured data only.
-                                """)
-                        .user(message)
-                        .advisors(advisor -> advisor.param(
-                                ChatMemory.CONVERSATION_ID,
-                                conversation.getConversationId()
-                        ))
-                        .call()
-                        .entity(ProductSearchCriteria.class);
+                // STEP 1: Extract product search requirements.
+                ProductSearchCriteria criteria =
+                        extractionChatClient.prompt()
+                                .system("""
+                                        You are a product search requirement extractor
+                                        for a Makhana shopping store.
 
-        if (criteria == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Could not understand the product search request."
-            );
-        }
+                                        Extract search filters from the customer's message.
 
-        // STEP 2: Search the real store API.
-        ProductPageResponse productPage =
-                productApiClient.searchProducts(
-                        jwtToken,
-                        criteria.getKeyword(),
-                        criteria.getCategory(),
-                        criteria.getMinPrice(),
-                        criteria.getMaxPrice(),
-                        null,
-                        15
+                                        Available fields:
+                                        - keyword
+                                        - category
+                                        - minPrice
+                                        - maxPrice
+
+                                        Rules:
+                                        1. Extract only information supported by the message.
+                                        2. Use null for filters not specified.
+                                        3. Never invent product names or prices.
+                                        4. Convert prices into numeric rupee values.
+                                        5. Keep keywords short and specific.
+                                        6. Remove generic words such as "show me"
+                                        and "products" from the keyword.
+                                        7. If the customer says "Sweet Makhana",
+                                        use keyword "Sweet".
+                                        8. Return structured data only.
+                                        """)
+                                .user(message)
+                                .call()
+                                .entity(ProductSearchCriteria.class);
+
+                if (criteria != null) {
+
+                        // STEP 2: Search the actual store API.
+                        ProductPageResponse productPage =
+                                productApiClient.searchProducts(
+                                        jwtToken,
+                                        criteria.getKeyword(),
+                                        criteria.getCategory(),
+                                        criteria.getMinPrice(),
+                                        criteria.getMaxPrice(),
+                                        null,
+                                        15
+                                );
+
+                        // STEP 3: Collect only the products returned by this search.
+                        if (productPage != null &&
+                                productPage.getContent() != null) {
+
+                        for (StoreProduct product : productPage.getContent()) {
+
+                                productCollector.add(product);
+
+                                productContext.append("""
+                                        Product ID: %s
+                                        Name: %s
+                                        Description: %s
+                                        Price: ₹%s
+                                        Available Quantity: %s
+                                        Category: %s
+
+                                        """.formatted(
+                                        product.getId(),
+                                        product.getName(),
+                                        product.getDescription(),
+                                        product.getPrice(),
+                                        product.getQuantity(),
+                                        product.getCategory()
+                                ));
+                        }
+                        }
+                }
+
+                if (productContext.isEmpty()) {
+                        productContext.append("No matching products were found.");
+                }
+
+                } else {
+
+                System.out.println("Product search skipped: " + message);
+
+                productContext.append(
+                        "Product search was not required for this customer message. " +
+                        "Do not recommend or invent products. " +
+                        "Use the available tools for the requested operation."
                 );
-
-        // STEP 3: Collect products and prepare product information for the AI.
-        StringBuilder productContext = new StringBuilder();
-
-        if (productPage != null && productPage.getContent() != null) {
-
-            for (StoreProduct product : productPage.getContent()) {
-
-                // Save the actual product for the frontend product card.
-                productCollector.add(product);
-
-                productContext.append("""
-                        Product ID: %s
-                        Name: %s
-                        Description: %s
-                        Price: ₹%s
-                        Available Quantity: %s
-                        Category: %s
-
-                        """.formatted(
-                        product.getId(),
-                        product.getName(),
-                        product.getDescription(),
-                        product.getPrice(),
-                        product.getQuantity(),
-                        product.getCategory()
-                ));
-            }
-        }
-
-        if (productContext.isEmpty()) {
-            productContext.append("No matching products were found.");
-        }
+                }
 
         // STEP 4: Generate the final AI response.
         String systemPrompt = """
@@ -224,6 +228,15 @@ public class ConversationService {
 
                 %s
 
+
+                PRODUCT SEARCH RULES:
+                1. Product information is provided only when a product search was performed.
+                2. If product search was not performed, do not recommend products.
+                3. Do not display or invent product cards for normal conversations,
+                order operations, cart operations, or checkout confirmation.
+                4. For product-related requests, use only the actual product information
+                supplied in the current request. 
+                
                 Important rules:
                 1. Recommend only products in the provided information.
                 2. Never invent product names or prices.
@@ -411,4 +424,77 @@ public class ConversationService {
                 productCollector.getProducts()
         );
     }
+
+    private boolean shouldSearchProducts(String message) {
+
+    if (message == null || message.isBlank()) {
+        return false;
+    }
+
+    String text = message.toLowerCase().trim();
+
+    // Operations that do not require product catalogue searching.
+    String[] noProductSearchPhrases = {
+            "confirm order",
+            "where is my order",
+            "where's my order",
+            "track my order",
+            "track order",
+            "order status",
+            "my orders",
+            "latest order",
+            "order history",
+            "delivery status",
+            "payment status",
+            "show my cart",
+            "view my cart",
+            "check my cart",
+            "update cart",
+            "change cart quantity",
+            "remove from cart",
+            "clear my cart",
+            "thank you",
+            "thanks",
+            "hello",
+            "hi",
+            "good morning",
+            "good evening"
+    };
+
+    for (String phrase : noProductSearchPhrases) {
+        if (text.contains(phrase)) {
+            return false;
+        }
+    }
+
+    // Product-related words and actions.
+    String[] productSearchPhrases = {
+            "makhana",
+            "product",
+            "products",
+            "show me",
+            "find",
+            "search",
+            "browse",
+            "recommend",
+            "buy",
+            "purchase",
+            "want to order",
+            "place an order",
+            "direct order",
+            "add to cart",
+            "product details",
+            "product price",
+            "product stock",
+            "available products"
+    };
+
+    for (String phrase : productSearchPhrases) {
+        if (text.contains(phrase)) {
+            return true;
+        }
+    }
+
+    return false;
+}
 }
