@@ -117,4 +117,27 @@ public class OrderApiClient {
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {});
         }
 
+
+        public Map<String, Object> updatePaymentStatus(
+        String jwtToken,
+        Long orderId,
+        String paymentStatus
+                ) {
+                return restClient.patch()
+                        .uri(
+                                "/api/admin/orders/{orderId}/payment-status",
+                                orderId
+                        )
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                "Bearer " + jwtToken
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("paymentStatus", paymentStatus))
+                        .retrieve()
+                        .body(
+                                new ParameterizedTypeReference<Map<String, Object>>() {}
+                        );
+                }
+
 }

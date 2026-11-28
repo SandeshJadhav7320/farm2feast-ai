@@ -216,4 +216,65 @@ public class AdminOrderTools {
 
         return result;
         }
+
+        @Tool(description = """
+        Change the payment status of an existing customer order.
+
+        Use this tool when the admin asks to update payment status.
+
+        Examples:
+        - Mark order 105 as paid.
+        - Change payment status of order 105 to refunded.
+        - Set order 105 payment status to pending.
+        - Mark order 105 payment as failed.
+
+        Allowed payment statuses:
+        PAID, REFUNDED, PENDING, FAILED.
+
+        Always use the exact order ID and payment status provided
+        by the admin.
+        """)
+        public Map<String, Object> changePaymentStatus(
+
+                @ToolParam(description = "The order ID")
+                Long orderId,
+
+                @ToolParam(description = "New payment status: PAID, REFUNDED, PENDING or FAILED")
+                String paymentStatus
+        ) {
+
+        if (orderId == null || orderId <= 0) {
+                throw new IllegalArgumentException("Invalid order ID");
+        }
+
+        String normalizedStatus = paymentStatus
+                .trim()
+                .toUpperCase();
+
+        List<String> allowedStatuses = List.of(
+                "PAID",
+                "REFUNDED",
+                "PENDING",
+                "FAILED"
+        );
+
+        if (!allowedStatuses.contains(normalizedStatus)) {
+                throw new IllegalArgumentException(
+                        "Invalid payment status: " + paymentStatus
+                );
+        }
+
+        Map<String, Object> result =
+                orderApiClient.updatePaymentStatus(
+                        jwtToken,
+                        orderId,
+                        normalizedStatus
+                );
+
+        lastResult = result;
+        lastResultType = "PAYMENT_STATUS_UPDATED";
+
+        return result;
+        }
 }
+        
